@@ -30,7 +30,7 @@ class PostStates(StatesGroup):
     waiting_media = State()
     waiting_link = State()
     waiting_name = State()
-    waiting_source = State()   # новый шаг
+    waiting_source = State()
 
 
 def get_type_keyboard() -> InlineKeyboardMarkup:
@@ -68,13 +68,7 @@ async def choose_type(callback: CallbackQuery, state: FSMContext):
     await state.update_data(post_type=post_type)
     await state.set_state(PostStates.waiting_media)
     
-    await callback.message.edit_text(
-        "Пришлите в чётком порядке:\n\n"
-        "1. Медиа файл\n"
-        "2. Ссылка на автора\n"
-        "3. Имя автора\n"
-        "4. Источник поста"
-    )
+    await callback.message.edit_text("Пришлите медиа")
     await callback.answer()
 
 
@@ -151,8 +145,6 @@ async def get_source(message: Message, state: FSMContext):
     is_nsfw = post_type in (2, 4)
     tags = HASHTAGS.get(post_type, "")
     
-    # Новый формат:
-    # @ ИмяАвтора on Источник
     caption = (
         f"{MARK}\n"
         f"\n"
