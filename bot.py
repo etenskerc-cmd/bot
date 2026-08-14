@@ -11,10 +11,8 @@ from aiogram.enums import ParseMode
 # ====================== НАСТРОЙКИ ======================
 TOKEN = os.getenv("BOT_TOKEN")
 
-# Пометка (текст в начале поста)
 MARK = "✨//🌀 ຣครഠຣບ໑ບ சഠཞ౿୶౿ཞ"
 
-# Хэштеги по типам постов
 HASHTAGS = {
     1: "#art #Satosugu #SuguruGeto #SatoryGojo",
     2: "#NSFW #art #Satosugu #SuguruGeto #SatoryGojo",
@@ -32,6 +30,7 @@ class PostStates(StatesGroup):
     waiting_media = State()
     waiting_link = State()
     waiting_name = State()
+    waiting_source = State()   # новый шаг
 
 
 def get_type_keyboard() -> InlineKeyboardMarkup:
@@ -66,7 +65,6 @@ async def new_post(callback: CallbackQuery, state: FSMContext):
 @dp.callback_query(F.data.startswith("type_"))
 async def choose_type(callback: CallbackQuery, state: FSMContext):
     post_type = int(callback.data.split("_")[1])
-    
     await state.update_data(post_type=post_type)
     await state.set_state(PostStates.waiting_media)
     
@@ -74,7 +72,8 @@ async def choose_type(callback: CallbackQuery, state: FSMContext):
         "Пришлите в чётком порядке:\n\n"
         "1. Медиа файл\n"
         "2. Ссылка на автора\n"
-        "3. Имя автора"
+        "3. Имя автора\n"
+        "4. Источник поста"
     )
     await callback.answer()
 
@@ -94,10 +93,7 @@ async def get_media(message: Message, state: FSMContext):
         await message.answer("Пришли фото, гифку или видео.")
         return
     
-    await state.update_data(
-        file_id=file_id,
-        media_type=media_type
-    )
+    await state.update_data(file_id=file_id, media_type=media_type)
     await state.set_state(PostStates.waiting_link)
     
     await message.answer(
@@ -131,20 +127,36 @@ async def get_link(message: Message, state: FSMContext):
 @dp.message(PostStates.waiting_name)
 async def get_name(message: Message, state: FSMContext):
     name = message.text.strip()
+    await state.update_data(name=name)
+    await state.set_state(PostStates.waiting_source)
+    
+    await message.answer(
+        "Имя принято ✅\n\n"
+        "Укажите источник поста.\n"
+        "Пример: X / tumblr / vk / tiktok и т.д."
+    )
+
+
+@dp.message(PostStates.waiting_source)
+async def get_source(message: Message, state: FSMContext):
+    source = message.text.strip()
     data = await state.get_data()
     
     post_type = data["post_type"]
     file_id = data["file_id"]
     media_type = data["media_type"]
     link = data["link"]
+    name = data["name"]
     
     is_nsfw = post_type in (2, 4)
     tags = HASHTAGS.get(post_type, "")
     
+    # Новый формат:
+    # @ ИмяАвтора on Источник
     caption = (
         f"{MARK}\n"
         f"\n"
-        f"<a href=\"{link}\">{name}</a>\n"
+        f"@ <a href=\"{link}\">{name}</a> on {source}\n"
         f"\n"
         f"<blockquote>{tags}</blockquote>"
     )
